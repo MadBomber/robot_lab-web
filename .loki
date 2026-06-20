@@ -1,0 +1,15 @@
+# frozen_string_literal: true
+# robot_lab-web — Sinatra + SSE web console for driving RobotLab robots.
+
+import_up "repo_dev.loki"
+
+class Tasks
+  @@gem_name ||= "robot_lab-web".freeze
+
+  header "robot_lab-web v#{gem_version} — web console (Sinatra + HTMX + SSE)"
+
+  desc "Start the web console (pass a boot file, e.g. asgard server examples/boot.rb)"
+  def server(*args)
+    sh "bundle exec ruby exe/robot_lab-web #{args.join(' ')}"
+  end
+end

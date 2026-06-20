@@ -1,0 +1,26 @@
+h1 Robots
+- if robots.empty?
+  p No robots registered. In your boot script:
+  pre
+    | require "robot_lab/web"
+    |
+    | RobotLab::Web.register(my_robot)
+- else
+  ul.robots
+    - robots.each do |name|
+      li
+        a href="/robots/#{name}"= name
+
+h2 Recent activity
+- if activity.empty?
+  p.muted Nothing yet.
+- else
+  ul.activity
+    - activity.each do |entry|
+      li
+        = entry[:timestamp].strftime("%H:%M:%S")
+        |  ·
+        = entry[:type]
+        - if entry[:details] && !entry[:details].empty?
+          |  ·
+          = entry[:details].reject { |_, v| v.nil? }.map { |k, v| "#{k}=#{v}" }.join(" ")

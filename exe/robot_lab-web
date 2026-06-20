@@ -1,0 +1,37 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Launch the robot_lab-web console with Puma.
+#
+#   robot_lab-web [--port 9292] [--host 127.0.0.1] [boot_file.rb]
+#
+# boot_file.rb (or $ROBOT_LAB_WEB_BOOT) should require robot_lab, build your
+# robots, and RobotLab::Web.register each one.
+
+require 'optparse'
+require 'robot_lab/web'
+
+options = { port: 9292, host: '127.0.0.1' }
+OptionParser.new do |o|
+  o.banner = 'Usage: robot_lab-web [options] [boot_file.rb]'
+  o.on('-p', '--port PORT', Integer, 'Port (default 9292)') { |v| options[:port] = v }
+  o.on('-h', '--host HOST', 'Bind host (default 127.0.0.1)') { |v| options[:host] = v }
+end.parse!
+
+boot = ARGV.shift || ENV.fetch('ROBOT_LAB_WEB_BOOT', nil)
+require File.expand_path(boot) if boot && File.exist?(boot)
+
+require 'puma'
+require 'puma/configuration'
+require 'puma/launcher'
+
+rack_app = RobotLab::Web.app
+warn "robot_lab-web on http://#{options[:host]}:#{options[:port]} " \
+     "(#{RobotLab::Web::Registry.names.size} robot(s) registered)"
+
+config = Puma::Configuration.new do |c|
+  c.bind "tcp://#{options[:host]}:#{options[:port]}"
+  c.app rack_app
+  c.quiet false
+end
+Puma::Launcher.new(config).run

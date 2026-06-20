@@ -1,0 +1,23 @@
+## [Unreleased]
+
+### Added
+- Core (Sinatra-free) surface: `RobotLab::Web::Event` (immutable, role-validated,
+  `to_h`/`from_h`), `ActivityLog` (bounded thread-safe ring buffer), `EventSink`
+  (thread-local capture), and `Registry` (in-memory robot registry).
+- `RobotLab::Web::StreamHook` — taps robot_lab's hook system and turns each
+  run/tool/error moment into an `Event` delivered to the current sink.
+- `RobotLab::Web.run(robot, message) { |event| ... }` — stream a run's events
+  from plain Ruby.
+- Token-delta streaming: `RobotLab::Web.run` passes a streaming block to the
+  robot, emitting a `:delta` event per RubyLLM content chunk so the reply renders
+  token by token. Deltas bypass the `ActivityLog`; the final `:robot` event still
+  carries the whole reply. The browser accumulates deltas into a live bubble.
+- Opt-in Sinatra app (`require "robot_lab/web/app"`): dashboard, chat page,
+  `POST /robots/:name/stream` (Server-Sent Events) and a non-streaming
+  `POST /robots/:name/chat` HTMX fallback. CSRF + hashed session secret +
+  cookie hardening + production boot guard.
+- `robot_lab-web` executable and `config.ru` launcher; `examples/boot.rb`.
+
+## [0.1.0] - 2026-06-20
+
+- Initial release
