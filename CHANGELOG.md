@@ -5,6 +5,10 @@
   reactor is the right fit for the long-lived SSE streams this console serves —
   fiber-per-connection concurrency, verified with two interleaving streams. The
   `exe` launches a single Falcon reactor; `config.ru` stays server-agnostic.
+- Style with **Tailwind CSS** (Play CDN) instead of hand-rolled CSS. The dark
+  theme is preserved; styles are Tailwind utilities composed via `@apply` so the
+  Slim partials and the SSE client's JS-built message bubbles share one
+  definition.
 
 ### Added
 - Core (Sinatra-free) surface: `RobotLab::Web::Event` (immutable, role-validated,
