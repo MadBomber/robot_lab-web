@@ -41,17 +41,17 @@ assistant = RobotLab.build(name: "assistant", system_prompt: "You are concise.")
 RobotLab::Web.register(assistant)
 ```
 
-Launch the console (Puma):
+Launch the console (Falcon):
 
 ```bash
 robot_lab-web my_robots.rb            # http://127.0.0.1:9292
 robot_lab-web --port 4567 my_robots.rb
 ```
 
-…or via `rackup`:
+…or point Falcon (or any Rack server) at the server-agnostic `config.ru`:
 
 ```bash
-ROBOT_LAB_WEB_BOOT=my_robots.rb rackup
+ROBOT_LAB_WEB_BOOT=my_robots.rb falcon serve -c config.ru
 ```
 
 Then open the dashboard, pick a robot, and chat. (Running a robot needs the
@@ -85,7 +85,7 @@ pure-Ruby and unit-tested in isolation; the Sinatra app is covered with
 `rack-test`.
 
 The Sinatra stack is opt-in: `require "robot_lab/web"` loads only the core;
-`require "robot_lab/web/app"` (or `RobotLab::Web.app`) pulls in Sinatra/Puma/Slim.
+`require "robot_lab/web/app"` (or `RobotLab::Web.app`) pulls in Sinatra/Falcon/Slim.
 
 ## License
 

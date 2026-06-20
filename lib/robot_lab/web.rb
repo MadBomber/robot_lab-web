@@ -4,7 +4,7 @@ require_relative 'web/version'
 
 # Core (Sinatra-free) surface of robot_lab-web. Requiring this gives you the
 # event model, activity log, sink, registry, and — when robot_lab is loaded —
-# the StreamHook. The Sinatra app and its heavy deps (sinatra, puma, slim) are
+# the StreamHook. The Sinatra app and its heavy deps (sinatra, falcon, slim) are
 # opt-in: `require "robot_lab/web/app"`, which keeps the web stack off the core
 # load path.
 require_relative 'web/event'

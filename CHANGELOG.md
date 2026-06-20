@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+### Changed
+- Use **Falcon** as the application server (replacing Puma). Its async/fiber
+  reactor is the right fit for the long-lived SSE streams this console serves —
+  fiber-per-connection concurrency, verified with two interleaving streams. The
+  `exe` launches a single Falcon reactor; `config.ru` stays server-agnostic.
+
 ### Added
 - Core (Sinatra-free) surface: `RobotLab::Web::Event` (immutable, role-validated,
   `to_h`/`from_h`), `ActivityLog` (bounded thread-safe ring buffer), `EventSink`

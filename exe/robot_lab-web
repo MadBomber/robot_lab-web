@@ -1,7 +1,8 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Launch the robot_lab-web console with Puma.
+# Launch the robot_lab-web console with Falcon (async/fiber reactor — the right
+# fit for the long-lived SSE streams this console serves).
 #
 #   robot_lab-web [--port 9292] [--host 127.0.0.1] [boot_file.rb]
 #
@@ -21,17 +22,20 @@ end.parse!
 boot = ARGV.shift || ENV.fetch('ROBOT_LAB_WEB_BOOT', nil)
 require File.expand_path(boot) if boot && File.exist?(boot)
 
-require 'puma'
-require 'puma/configuration'
-require 'puma/launcher'
+require 'async'
+require 'async/http/endpoint'
+require 'falcon/server'
 
 rack_app = RobotLab::Web.app
-warn "robot_lab-web on http://#{options[:host]}:#{options[:port]} " \
+endpoint = Async::HTTP::Endpoint.parse("http://#{options[:host]}:#{options[:port]}")
+
+warn "robot_lab-web on http://#{options[:host]}:#{options[:port]} (Falcon) " \
      "(#{RobotLab::Web::Registry.names.size} robot(s) registered)"
 
-config = Puma::Configuration.new do |c|
-  c.bind "tcp://#{options[:host]}:#{options[:port]}"
-  c.app rack_app
-  c.quiet false
+# A single fiber reactor: one process with cheap fiber-per-connection
+# concurrency, so the dashboard's in-memory state (Registry, ActivityLog) stays
+# consistent while many SSE streams run at once. Ctrl-C to stop.
+Async do
+  server = Falcon::Server.new(Falcon::Server.middleware(rack_app), endpoint)
+  server.run.each(&:wait)
 end
-Puma::Launcher.new(config).run
