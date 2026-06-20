@@ -84,8 +84,12 @@ After checking out the repo, run `bin/setup` to install dependencies, then
 pure-Ruby and unit-tested in isolation; the Sinatra app is covered with
 `rack-test`.
 
+Views are **Phlex components** (`lib/robot_lab/web/components/`), rendered in
+Sinatra via `phlex-sinatra`, styled with Tailwind, with Heroicons from
+`phlex-icons-hero`.
+
 The Sinatra stack is opt-in: `require "robot_lab/web"` loads only the core;
-`require "robot_lab/web/app"` (or `RobotLab::Web.app`) pulls in Sinatra/Falcon/Slim.
+`require "robot_lab/web/app"` (or `RobotLab::Web.app`) pulls in Sinatra/Falcon/Phlex.
 
 ## License
 

@@ -43,6 +43,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency "robot_lab", ">= 0.1"
   spec.add_dependency "sinatra", "~> 4.0"
   spec.add_dependency "falcon", ">= 0.47"
-  spec.add_dependency "slim", "~> 5.0"
+  spec.add_dependency "phlex", "~> 2.0"
+  spec.add_dependency "phlex-sinatra", ">= 0.5"
+  spec.add_dependency "phlex-icons-hero", ">= 2.0"
   spec.add_dependency "rackup", "~> 2.1"
 end

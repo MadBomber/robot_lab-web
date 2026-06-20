@@ -4,10 +4,16 @@ require 'openssl'
 require 'securerandom'
 require 'json'
 require 'sinatra/base'
-require 'slim'
+require 'phlex-sinatra'
+require 'phlex-icons-hero'
 require 'rack/utils'
 
 require_relative '../web'
+require_relative 'components/layout'
+require_relative 'components/dashboard'
+require_relative 'components/chat'
+require_relative 'components/message'
+require_relative 'components/error_page'
 
 module RobotLab
   module Web
@@ -19,9 +25,9 @@ module RobotLab
     # constant-time compare, hashed session secret, cookie flags, production
     # boot guard) harden the surface but do not make it safe to expose publicly.
     class App < Sinatra::Base
-      set :root, File.expand_path(__dir__)
-      set :views, File.expand_path('views', __dir__)
-      set :slim, pretty: true
+      # phlex-sinatra registers its `phlex` helper on the classic
+      # Sinatra::Application; a modular Sinatra::Base app must include it.
+      helpers Phlex::Sinatra
 
       configure do
         # Sinatra 4 / rack-protection enable Host authorization by default,
@@ -60,25 +66,31 @@ module RobotLab
           session[:csrf]
         end
 
-        def robot_or_not_found(name)
-          Registry.fetch(name) || halt(404, slim(:error, locals: { message: "No robot named #{name.inspect}" }))
+        # Render a page component wrapped in the Layout (HTML doc shell).
+        def page(content)
+          phlex Components::Layout.new(csrf: csrf_token, content: content)
         end
 
-        # Render one transcript message partial for an Event.
+        def robot_or_not_found(name)
+          Registry.fetch(name) ||
+            halt(404, page(Components::ErrorPage.new(message: "No robot named #{name.inspect}")))
+        end
+
+        # Render one transcript message (Event) to an HTML fragment.
         def message_html(event)
-          slim :_message, layout: false, locals: { event: event }
+          Components::Message.new(event: event).call
         end
       end
 
       # --- Dashboard -------------------------------------------------------
 
       get '/' do
-        slim :index, locals: { robots: Registry.names, activity: ActivityLog.recent(15) }
+        page Components::Dashboard.new(robots: Registry.names, activity: ActivityLog.recent(15))
       end
 
       get '/robots/:name' do
-        robot = robot_or_not_found(params[:name])
-        slim :chat, locals: { name: params[:name], robot: robot }
+        robot_or_not_found(params[:name])
+        page Components::Chat.new(name: params[:name])
       end
 
       # --- Streaming run (SSE) ---------------------------------------------

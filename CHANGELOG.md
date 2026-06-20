@@ -7,8 +7,10 @@
   `exe` launches a single Falcon reactor; `config.ru` stays server-agnostic.
 - Style with **Tailwind CSS** (Play CDN) instead of hand-rolled CSS. The dark
   theme is preserved; styles are Tailwind utilities composed via `@apply` so the
-  Slim partials and the SSE client's JS-built message bubbles share one
-  definition.
+  server-rendered and JS-built message bubbles share one definition.
+- Render views as **Phlex components** (replacing Slim) — `Layout`, `Dashboard`,
+  `Chat`, `Message`, `ErrorPage` — via `phlex-sinatra`, with inline SVG icons
+  from `phlex-icons-hero`. Drops the `slim` dependency.
 
 ### Added
 - Core (Sinatra-free) surface: `RobotLab::Web::Event` (immutable, role-validated,

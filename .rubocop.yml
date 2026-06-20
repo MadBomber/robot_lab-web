@@ -110,6 +110,12 @@ Lint/EmptyBlock:
 Lint/UnusedMethodArgument:
   Enabled: false
 
+# Phlex components legitimately override #initialize without super — the base
+# class has no initializer (state is set up at render time, not construction).
+Lint/MissingSuper:
+  Exclude:
+    - 'lib/robot_lab/web/components/**/*'
+
 Lint/ConstantDefinitionInBlock:
   Exclude:
     - 'Rakefile'
