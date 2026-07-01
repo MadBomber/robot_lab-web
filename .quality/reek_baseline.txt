@@ -1,0 +1,8 @@
+1	lib/robot_lab/web.rb
+1	lib/robot_lab/web/components/chat.rb
+1	lib/robot_lab/web/components/dashboard.rb
+1	lib/robot_lab/web/components/layout.rb
+1	lib/robot_lab/web/components/message.rb
+4	lib/robot_lab/web/event.rb
+1	lib/robot_lab/web/event_sink.rb
+1	lib/robot_lab/web/registry.rb
