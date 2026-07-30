@@ -29,6 +29,26 @@ module RobotLab
       # Sinatra::Application; a modular Sinatra::Base app must include it.
       helpers Phlex::Sinatra
 
+      # Stable session secret. Uses SESSION_SECRET when set; otherwise persists a
+      # per-user random secret so it survives restarts. A fresh random secret on
+      # every boot would invalidate existing session cookies ("HMAC is invalid").
+      def self.session_secret_source
+        ENV['SESSION_SECRET'] || persisted_dev_secret
+      end
+
+      def self.persisted_dev_secret
+        path     = File.join(Dir.home, '.config', 'robot_lab', 'web_session_secret')
+        existing = File.read(path).strip if File.exist?(path)
+        return existing if existing && !existing.empty?
+
+        require 'fileutils'
+        FileUtils.mkdir_p(File.dirname(path))
+        SecureRandom.hex(64).tap do |secret|
+          File.write(path, secret)
+          File.chmod(0o600, path)
+        end
+      end
+
       configure do
         # Sinatra 4 / rack-protection enable Host authorization by default,
         # which 403s any Host header not explicitly permitted. This dev tool is
@@ -36,11 +56,9 @@ module RobotLab
         set :host_authorization, { permitted_hosts: [] }
         set :sessions, httponly: true, same_site: :lax, secure: production?
 
-        # Derive a stable 64-hex key from whatever SESSION_SECRET is set. The
-        # encrypted-cookie store errors on short/odd-length secrets; hashing
-        # makes any value work deterministically across restarts and workers.
-        raw = ENV['SESSION_SECRET'] || SecureRandom.hex(64)
-        set :session_secret, OpenSSL::Digest::SHA256.hexdigest(raw)
+        # Hash to a 64-hex key — the encrypted-cookie store errors on short/odd
+        # secrets; hashing makes any value work deterministically.
+        set :session_secret, OpenSSL::Digest::SHA256.hexdigest(session_secret_source)
       end
 
       configure :production do
