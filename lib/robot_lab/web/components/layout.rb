@@ -11,6 +11,7 @@ module RobotLab
           @content = content
         end
 
+        # :reek:TooManyStatements -- a Phlex template is one linear markup sequence; splitting it would scatter the page structure.
         def view_template
           doctype
           html(lang: "en", class: "dark") do

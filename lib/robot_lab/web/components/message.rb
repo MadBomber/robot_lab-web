@@ -25,11 +25,12 @@ module RobotLab
 
         def body_text
           c = @event.content
+          name = @event.tool_name
           case @event.role
           when :tool_call
-            "#{@event.tool_name}(#{c[:args].to_json})"
+            "#{name}(#{c[:args].to_json})"
           when :tool_result
-            c[:error] ? "#{@event.tool_name} → error: #{c[:error]}" : "#{@event.tool_name} → #{c[:result]}"
+            c[:error] ? "#{name} → error: #{c[:error]}" : "#{name} → #{c[:result]}"
           when :error
             @event.error_message.to_s
           else

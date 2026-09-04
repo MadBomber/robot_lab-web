@@ -10,6 +10,7 @@ module RobotLab
           @name = name
         end
 
+        # :reek:TooManyStatements -- a Phlex template is one linear markup sequence; splitting it would scatter the page structure.
         def view_template
           h1(class: "flex items-center gap-2") do
             a(href: "/", class: "inline-flex") do

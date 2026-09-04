@@ -10,6 +10,7 @@ module RobotLab
           @activity = activity
         end
 
+        # :reek:TooManyStatements -- a Phlex template is one linear markup sequence; splitting it would scatter the page structure.
         def view_template
           h1 { "Robots" }
           if @robots.empty?
