@@ -1,0 +1,7 @@
+# False-positive suppressions for the typos quality gate (asgard).
+# Everything here was reviewed by hand — see git history for context.
+
+[default.extend-identifiers]
+# test_run.rb streams "Hello!" as the fragments %w[Hel lo!] to exercise
+# token-delta streaming; "Hel" is a deliberate partial token, not a typo.
+Hel = "Hel"

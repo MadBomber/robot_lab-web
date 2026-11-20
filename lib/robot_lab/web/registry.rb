@@ -12,6 +12,7 @@ module RobotLab
       end
 
       # Register a robot (anything responding to #run and #name).
+      # :reek:ControlParameter -- nil name means "use the robot's own name", an override default, not a mode switch.
       def register(robot, name: nil)
         key = (name || robot.name).to_s
         store[key] = robot

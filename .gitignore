@@ -1,4 +1,5 @@
 *_output.txt
+Gemfile.lock
 /.bundle/
 /.yardoc
 /_yardoc/

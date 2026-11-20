@@ -51,6 +51,7 @@ module RobotLab
     #
     #   events = []
     #   RobotLab::Web.run(robot, "hello") { |event| events << event }
+    # :reek:TooManyStatements -- the one linear sink-install/run/stream orchestration the web routes wrap.
     def run(robot, message, sink = nil, &block)
       sink ||= block
       name = robot.respond_to?(:name) ? robot.name : nil

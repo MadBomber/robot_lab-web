@@ -22,6 +22,7 @@ module RobotLab
     Event = Struct.new(:role, :content, :robot_name, :timestamp, :event_id, keyword_init: true) do
       ROLES = %i[user delta robot tool_call tool_result error].freeze # rubocop:disable Lint/ConstantDefinitionInBlock
 
+      # :reek:ControlParameter -- nil timestamp/event_id mean "generate one"; `|| default` also covers explicit nils from .from_h.
       def initialize(role:, content:, robot_name: nil, timestamp: nil, event_id: nil)
         role = role.to_sym
         raise ArgumentError, "invalid role: #{role.inspect} (expected one of #{ROLES.inspect})" unless ROLES.include?(role)
@@ -87,6 +88,8 @@ module RobotLab
 
       private
 
+      # :reek:DuplicateMethodCall -- one freeze per case branch; exactly one executes per call.
+      # :reek:FeatureEnvy -- a recursive freeze necessarily walks the argument, not self.
       def deep_freeze(obj)
         case obj
         when Hash

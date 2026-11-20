@@ -22,11 +22,12 @@ module RobotLab
       # Run the block with +sink+ (any callable taking an Event) installed as
       # the current consumer. Restores the previous sink afterward.
       def capture(sink)
-        previous = Thread.current[KEY]
-        Thread.current[KEY] = sink
+        thread = Thread.current
+        previous = thread[KEY]
+        thread[KEY] = sink
         yield
       ensure
-        Thread.current[KEY] = previous
+        thread[KEY] = previous
       end
 
       def current
