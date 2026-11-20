@@ -15,7 +15,7 @@ Gem::Specification.new do |spec|
                      "via robot_lab's hook system."
   spec.homepage = "https://github.com/madbomber/robot_lab-web"
   spec.license = "MIT"
-  spec.required_ruby_version = ">= 4.0"
+  spec.required_ruby_version = ">= 4.0.9"
   spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = spec.homepage
   spec.metadata["changelog_uri"] = "#{spec.homepage}/blob/main/CHANGELOG.md"
@@ -40,7 +40,7 @@ Gem::Specification.new do |spec|
   spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "robot_lab", "~> 0.3"
+  spec.add_dependency "robot_lab", "~> 0.6"
   spec.add_dependency "sinatra", "~> 4.0"
   spec.add_dependency "falcon", ">= 0.47"
   spec.add_dependency "phlex", "~> 2.0"
