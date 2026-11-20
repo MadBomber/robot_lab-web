@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Ruby 3.2+ (per the gemspec's `required_ruby_version`)
+- Ruby 4.0.9+ (per the gemspec's `required_ruby_version`)
 - `robot_lab` — a hard dependency; `robot_lab/web` requires it directly (see [How It Works — Core vs. Opt-In Web Stack](how_it_works.md#core-vs-opt-in-web-stack)), so load order relative to your own `require "robot_lab"` never matters
 - A provider API key for whatever model your robots use (e.g. `ANTHROPIC_API_KEY`) — the console itself needs no credentials, but actually running a robot through it does
 
