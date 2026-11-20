@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A Rails-free Sinatra + HTMX + SSE browser console for the RobotLab LLM agent framework">
+        <meta name="description" content="A Rails-free Sinatra + Phlex + SSE browser console for the RobotLab LLM agent framework">
       
       
         <meta name="author" content="Dewayne VanHoozer">
@@ -575,6 +575,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#version" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        VERSION
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -835,6 +846,17 @@
     <span class="md-ellipsis">
       
         clear → void
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#store-hash" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        store → Hash
       
     </span>
   </a>
@@ -998,6 +1020,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#version" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        VERSION
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1264,6 +1297,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#store-hash" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        store → Hash
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1357,16 +1401,18 @@
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="no">RobotLab</span><span class="o">::</span><span class="no">Web</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">assistant</span><span class="p">,</span><span class="w"> </span><span class="s2">"hello"</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">|</span><span class="n">event</span><span class="o">|</span><span class="w"> </span><span class="n">events</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">event</span><span class="w"> </span><span class="p">}</span>
 </span></code></pre></div>
 <h3 id="app-robotlabwebapp"><code>app → RobotLab::Web::App</code><a class="headerlink" href="#app-robotlabwebapp" title="Permanent link">&para;</a></h3>
-<p>Lazily requires <code>"robot_lab/web/app"</code> (pulling in Sinatra/Falcon/Phlex on first call) and returns the <code>App</code> class — a Rack app, suitable for <code>run RobotLab::Web.app</code> in a <code>config.ru</code>.</p>
+<p>Lazily requires <code>"robot_lab/web/app"</code> (pulling in Sinatra/Phlex on first call; Falcon is loaded only by <code>exe/robot_lab-web</code>) and returns the <code>App</code> class — a Rack app, suitable for <code>run RobotLab::Web.app</code> in a <code>config.ru</code>.</p>
 <h3 id="error"><code>Error</code><a class="headerlink" href="#error" title="Permanent link">&para;</a></h3>
 <p><code>RobotLab::Web::Error &lt; StandardError</code> — reserved for gem-specific error conditions. Not currently raised by any code path in this gem's own logic.</p>
+<h3 id="version"><code>VERSION</code><a class="headerlink" href="#version" title="Permanent link">&para;</a></h3>
+<p><code>RobotLab::Web::VERSION</code> — the gem version string (<code>"0.6.1"</code>).</p>
 <hr />
 <h2 id="robotlabwebevent"><code>RobotLab::Web::Event</code><a class="headerlink" href="#robotlabwebevent" title="Permanent link">&para;</a></h2>
 <div class="language-ruby highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="no">Event</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="no">Struct</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="ss">:role</span><span class="p">,</span><span class="w"> </span><span class="ss">:content</span><span class="p">,</span><span class="w"> </span><span class="ss">:robot_name</span><span class="p">,</span><span class="w"> </span><span class="ss">:timestamp</span><span class="p">,</span><span class="w"> </span><span class="ss">:event_id</span><span class="p">,</span><span class="w"> </span><span class="ss">keyword_init</span><span class="p">:</span><span class="w"> </span><span class="kp">true</span><span class="p">)</span>
 </span></code></pre></div>
-<p>Immutable (deep-frozen on construction). See <a href="../how_it_works/#the-event-model">How It Works — The Event Model</a> for the full role/content table.</p>
+<p>Immutable: on construction the event freezes itself and holds a deep-frozen <em>copy</em> of the <code>content</code> it was given (nested Hashes, Arrays and Strings are copied, so the caller's own objects are never frozen; any other object is stored as-is). See <a href="../how_it_works/#the-event-model">How It Works — The Event Model</a> for the full role/content table.</p>
 <h3 id="newrole-content-robot_name-nil-timestamp-nil-event_id-nil"><code>new(role:, content:, robot_name: nil, timestamp: nil, event_id: nil)</code><a class="headerlink" href="#newrole-content-robot_name-nil-timestamp-nil-event_id-nil" title="Permanent link">&para;</a></h3>
-<p>Raises <code>ArgumentError</code> if <code>role</code> isn't one of <code>Event::ROLES</code> (<code>:user</code>, <code>:delta</code>, <code>:robot</code>, <code>:tool_call</code>, <code>:tool_result</code>, <code>:error</code>). <code>timestamp</code> defaults to <code>Time.now.utc</code>; <code>event_id</code> defaults to <code>SecureRandom.uuid</code>.</p>
+<p>Raises <code>ArgumentError</code> if <code>role</code> isn't one of <code>Event::ROLES</code> (<code>:user</code>, <code>:delta</code>, <code>:robot</code>, <code>:tool_call</code>, <code>:tool_result</code>, <code>:error</code>; the same array is also reachable as <code>RobotLab::Web::ROLES</code>), including when it is <code>nil</code>. <code>role</code> is coerced with <code>#to_sym</code>, so a String role works. <code>timestamp</code> defaults to <code>Time.now.utc</code>; <code>event_id</code> defaults to <code>SecureRandom.uuid</code>.</p>
 <h3 id="readers">Readers<a class="headerlink" href="#readers" title="Permanent link">&para;</a></h3>
 <p><code>role</code>, <code>content</code>, <code>robot_name</code>, <code>timestamp</code>, <code>event_id</code> — plain <code>Struct</code> readers.</p>
 <h3 id="tool_name-string-nil"><code>tool_name → String, nil</code><a class="headerlink" href="#tool_name-string-nil" title="Permanent link">&para;</a></h3>
@@ -1380,14 +1426,14 @@
 <h3 id="to_h-hash"><code>to_h → Hash</code><a class="headerlink" href="#to_h-hash" title="Permanent link">&para;</a></h3>
 <p><code>{role:, content:, robot_name:, timestamp: (ISO 8601, ms precision), event_id:}</code> — JSON-serializable.</p>
 <h3 id="selffrom_hhash-event-nil"><code>self.from_h(hash) → Event, nil</code><a class="headerlink" href="#selffrom_hhash-event-nil" title="Permanent link">&para;</a></h3>
-<p>Rebuilds an <code>Event</code> from a Hash with either symbol or string keys (as produced by parsing JSON). Returns <code>nil</code> instead of raising if the role fails validation.</p>
+<p>Rebuilds an <code>Event</code> from a Hash with either symbol or string keys (as produced by parsing JSON). Returns <code>nil</code> instead of raising if the role is missing or not a permitted one, or the timestamp string is not valid ISO 8601 (<code>ArgumentError</code> is rescued). A missing timestamp becomes <code>Time.now.utc</code>; a missing <code>event_id</code> gets a fresh UUID.</p>
 <hr />
 <h2 id="robotlabwebeventsink-module"><code>RobotLab::Web::EventSink</code> (module)<a class="headerlink" href="#robotlabwebeventsink-module" title="Permanent link">&para;</a></h2>
-<p>The thread-local hook-to-consumer bridge. See <a href="../how_it_works/#eventsink-a-thread-local-mailbox">How It Works</a>.</p>
+<p>The thread-local hook-to-consumer bridge. See <a href="../how_it_works/#eventsink-a-thread-local-mailbox">How It Works</a>. The sink is held in <code>Thread.current[EventSink::KEY]</code> (<code>KEY = :robot_lab_web_event_sink</code>), which Ruby scopes to the current fiber.</p>
 <h3 id="capturesink-object"><code>capture(sink) { ... } → Object</code><a class="headerlink" href="#capturesink-object" title="Permanent link">&para;</a></h3>
 <p>Installs <code>sink</code> (anything responding to <code>#call</code>) as the current consumer for the duration of the block, restoring whatever was previously installed (supports nesting) once the block returns or raises.</p>
 <h3 id="current-call-nil"><code>current → #call, nil</code><a class="headerlink" href="#current-call-nil" title="Permanent link">&para;</a></h3>
-<p>The sink installed by the innermost enclosing <code>capture</code> call on this thread, or <code>nil</code>.</p>
+<p>The sink installed by the innermost enclosing <code>capture</code> call on this thread (and fiber), or <code>nil</code>.</p>
 <h3 id="emitevent-void"><code>emit(event) → void</code><a class="headerlink" href="#emitevent-void" title="Permanent link">&para;</a></h3>
 <p>Delivers <code>event</code> to <code>current</code> if one is installed. Any <code>StandardError</code> the sink raises is caught and discarded — a broken consumer must never break the run it's observing.</p>
 <hr />
@@ -1404,11 +1450,11 @@
 <tbody>
 <tr>
 <td><code>log(type, details = {})</code></td>
-<td>Records an entry (<code>{type:, details:, timestamp:}</code>); raises if <code>type</code>/<code>details</code> are malformed</td>
+<td>Records an entry (<code>{type:, details:, timestamp:}</code>, with <code>type</code> coerced via <code>#to_sym</code> and a UTC <code>timestamp</code>); raises <code>NoMethodError</code> if <code>type</code> doesn't respond to <code>#to_sym</code>. <code>details</code> is stored as given, unvalidated</td>
 </tr>
 <tr>
 <td><code>safe_log(type, details = {})</code></td>
-<td>Same, but swallows any error — use this from instrumentation paths</td>
+<td>Same, but swallows any <code>StandardError</code> (returning <code>nil</code>) — use this from instrumentation paths</td>
 </tr>
 <tr>
 <td><code>recent(limit = 10)</code></td>
@@ -1417,6 +1463,10 @@
 <tr>
 <td><code>clear</code></td>
 <td>Empties the log</td>
+</tr>
+<tr>
+<td><code>instance</code></td>
+<td>The process-wide singleton the methods above delegate to</td>
 </tr>
 </tbody>
 </table>
@@ -1435,9 +1485,12 @@
 <p>All registered robot objects, in insertion order.</p>
 <h3 id="clear-void"><code>clear → void</code><a class="headerlink" href="#clear-void" title="Permanent link">&para;</a></h3>
 <p>Empties the registry — mainly useful in tests.</p>
+<h3 id="store-hash"><code>store → Hash</code><a class="headerlink" href="#store-hash" title="Permanent link">&para;</a></h3>
+<p>The underlying name-to-robot <code>Hash</code> itself (memoized, mutable, not synchronized).</p>
 <hr />
 <h2 id="robotlabwebstreamhook"><code>RobotLab::Web::StreamHook</code><a class="headerlink" href="#robotlabwebstreamhook" title="Permanent link">&para;</a></h2>
 <p><code>RobotLab::Hook</code> subclass, <code>namespace = :web_stream</code>. See <a href="../how_it_works/#the-hook-to-sink-bridge">How It Works — The Hook-to-Sink Bridge</a> for the full callback table. Not instantiated directly — registered per-run via <code>robot.run(message, hooks: [RobotLab::Web::StreamHook])</code>, which is exactly what <code>RobotLab::Web.run</code> does for you.</p>
+<p>Public class methods, each taking the <code>robot_lab</code> hook context and returning the emitted <code>Event</code>: <code>before_run(ctx)</code>, <code>after_run(ctx)</code>, <code>before_tool_call(ctx)</code>, <code>after_tool_call(ctx)</code>, <code>on_error(ctx)</code>.</p>
 <hr />
 <h2 id="robotlabwebapp-requires-robot_labwebapp"><code>RobotLab::Web::App</code> <em>(requires <code>"robot_lab/web/app"</code>)</em><a class="headerlink" href="#robotlabwebapp-requires-robot_labwebapp" title="Permanent link">&para;</a></h2>
 <p>A <code>Sinatra::Base</code> subclass — a Rack app. See <a href="../security/">Security</a> for the session/CSRF/host-authorization configuration, and <a href="../how_it_works/#the-sse-wire-protocol">How It Works — The SSE Wire Protocol</a> for the streaming route's frame format.</p>
@@ -1459,14 +1512,15 @@
 </tr>
 <tr>
 <td><code>POST /robots/:name/stream</code></td>
-<td>SSE stream of one run — see <a href="../how_it_works/#the-sse-wire-protocol">How It Works</a></td>
+<td>Param: <code>message</code>. <code>200 text/event-stream</code> (with <code>Cache-Control: no-cache</code>, <code>X-Accel-Buffering: no</code>) carrying one run as <code>message</code>/<code>done</code>/<code>error</code> frames — see <a href="../how_it_works/#the-sse-wire-protocol">How It Works</a>. A missing/empty <code>message</code> or a run that raises is still a <code>200</code>, reported as an <code>error</code> frame</td>
 </tr>
 <tr>
 <td><code>POST /robots/:name/chat</code></td>
-<td>Runs to completion, returns rendered transcript HTML fragments (delta events excluded)</td>
+<td>Param: <code>message</code>. Runs to completion and returns <code>200 text/html</code>: the rendered transcript fragments joined by newlines (delta events excluded). <code>400</code> with body <code>Missing message</code> if <code>message</code> is missing/empty; an exception from the run is not rescued (a <code>500</code>)</td>
 </tr>
 </tbody>
 </table>
+<p>Every route other than <code>GET</code>/<code>HEAD</code>/<code>OPTIONS</code> first passes the CSRF <code>before</code> filter: without a valid token (<code>authenticity_token</code> param or <code>X-CSRF-Token</code> header) the response is <code>403</code> with body <code>Forbidden: invalid CSRF token</code>, before the robot lookup happens. With a valid token, both <code>POST</code> routes return the same <code>404</code> error page as <code>GET /robots/:name</code> for an unregistered name. <code>App::CSRF_SAFE_METHODS</code> is <code>%w[GET HEAD OPTIONS]</code>. The bundled chat page calls only the <code>/stream</code> route.</p>
 <p><code>self.session_secret_source</code> / <code>self.persisted_dev_secret</code> — the session-secret resolution logic; see <a href="../security/#session-secret-persistence">Security — Session Secret</a>.</p>
 <hr />
 <h2 id="robotlabwebcomponents-requires-robot_labwebapp"><code>RobotLab::Web::Components</code> <em>(requires <code>"robot_lab/web/app"</code>)</em><a class="headerlink" href="#robotlabwebcomponents-requires-robot_labwebapp" title="Permanent link">&para;</a></h2>

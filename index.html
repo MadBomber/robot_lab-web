@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A Rails-free Sinatra + HTMX + SSE browser console for the RobotLab LLM agent framework">
+        <meta name="description" content="A Rails-free Sinatra + Phlex + SSE browser console for the RobotLab LLM agent framework">
       
       
         <meta name="author" content="Dewayne VanHoozer">
@@ -711,7 +711,7 @@
 
 <h1 id="robot_lab-web">robot_lab-web<a class="headerlink" href="#robot_lab-web" title="Permanent link">&para;</a></h1>
 <p>A Rails-free <strong>web console for <a href="https://github.com/MadBomber/robot_lab">robot_lab</a></strong>: register your robots, chat with them from the browser, and watch each lifecycle event — tool calls, tool results, the final reply, errors — <strong>stream in real time</strong> over Server-Sent Events.</p>
-<p>It's the standalone counterpart to <a href="https://github.com/MadBomber/robot_lab-rails"><code>robot_lab-rails</code></a>: one event stream, a Sinatra + HTMX front end, no Turbo and no Rails required.</p>
+<p>It's the standalone counterpart to <a href="https://github.com/MadBomber/robot_lab-rails"><code>robot_lab-rails</code></a>: one event stream, a Sinatra front end with a small vanilla-JS streaming client (HTMX is not bundled; the non-streaming endpoint returns HTML fragments an HTMX client can swap in), no Turbo and no Rails required.</p>
 <div class="language-ruby highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># my_robots.rb</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">require</span><span class="w"> </span><span class="s2">"robot_lab"</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nb">require</span><span class="w"> </span><span class="s2">"robot_lab/web"</span>
@@ -758,7 +758,7 @@
 </tr>
 <tr>
 <td><strong>Front end</strong></td>
-<td>Vanilla JS <code>fetch()</code> streaming client (not <code>EventSource</code> — the stream route is CSRF-protected, and <code>EventSource</code> can't send custom headers) plus an HTMX-compatible non-streaming fallback</td>
+<td>Vanilla JS <code>fetch()</code> streaming client (not <code>EventSource</code> — the stream route is CSRF-protected, and <code>EventSource</code> can't send custom headers) plus an HTMX-compatible non-streaming fallback endpoint (HTMX itself is not loaded by the bundled pages, which use only the streaming route)</td>
 </tr>
 <tr>
 <td><strong>Core dependency</strong></td>
@@ -766,11 +766,11 @@
 </tr>
 <tr>
 <td><strong>Opt-in web stack</strong></td>
-<td><code>require "robot_lab/web/app"</code> (or call <code>RobotLab::Web.app</code>) pulls in Sinatra, Falcon, and Phlex</td>
+<td><code>require "robot_lab/web/app"</code> (or call <code>RobotLab::Web.app</code>) pulls in Sinatra and Phlex; Falcon is loaded only by the <code>robot_lab-web</code> executable</td>
 </tr>
 <tr>
 <td><strong>Endpoints</strong></td>
-<td><code>GET /</code>, <code>GET /robots/:name</code>, <code>POST /robots/:name/stream</code> (SSE), <code>POST /robots/:name/chat</code> (non-streaming HTMX fallback)</td>
+<td><code>GET /</code>, <code>GET /robots/:name</code>, <code>POST /robots/:name/stream</code> (SSE), <code>POST /robots/:name/chat</code> (non-streaming, HTMX-compatible fallback)</td>
 </tr>
 <tr>
 <td><strong>Hook used</strong></td>

@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A Rails-free Sinatra + HTMX + SSE browser console for the RobotLab LLM agent framework">
+        <meta name="description" content="A Rails-free Sinatra + Phlex + SSE browser console for the RobotLab LLM agent framework">
       
       
         <meta name="author" content="Dewayne VanHoozer">
@@ -831,9 +831,11 @@
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>robot_lab-web<span class="w"> </span>--port<span class="w"> </span><span class="m">4567</span><span class="w"> </span>my_robots.rb<span class="w">    </span><span class="c1"># custom port</span>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>robot_lab-web<span class="w"> </span>--host<span class="w"> </span><span class="m">0</span>.0.0.0<span class="w"> </span>my_robots.rb<span class="w"> </span><span class="c1"># custom bind host</span>
 </span></code></pre></div>
-<p><strong>Or via <code>config.ru</code></strong>, with any Rack server (the app itself is server-agnostic — <code>exe/robot_lab-web</code> picks Falcon specifically for its async/fiber reactor, but nothing about the Sinatra app requires it):</p>
+<p>The defaults are host <code>127.0.0.1</code> and port <code>9292</code>. The short forms are <code>-p PORT</code> and <code>-h HOST</code> — note that <code>-h</code> is the bind host here, not help (<code>--help</code> still prints usage).</p>
+<p><strong>Or via the <code>config.ru</code> in this gem's root directory</strong>, with any Rack server (the app itself is server-agnostic — <code>exe/robot_lab-web</code> picks Falcon specifically for its async/fiber reactor, but nothing about the Sinatra app requires it):</p>
 <div class="language-sh highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nv">ROBOT_LAB_WEB_BOOT</span><span class="o">=</span>my_robots.rb<span class="w"> </span>falcon<span class="w"> </span>serve<span class="w"> </span>-c<span class="w"> </span>config.ru
 </span></code></pre></div>
+<p>The <code>--host</code>/<code>--port</code> defaults above belong to <code>exe/robot_lab-web</code> only. Launched this way the bind address is whatever the Rack server chooses — <code>falcon serve</code> defaults to <code>https://localhost:9292</code> (HTTPS with a self-signed certificate) unless you pass <code>--bind</code>.</p>
 <p><code>ROBOT_LAB_WEB_BOOT</code> (or the boot file argument to the executable) is required by path before the app starts — <code>config.ru</code>/<code>exe/robot_lab-web</code> both check <code>File.exist?(boot)</code> and simply skip loading it if the path doesn't resolve, so a typo'd path silently produces a console with zero registered robots rather than an error.</p>
 <p>Then open the dashboard, pick a robot, and start chatting.</p>
 <h2 id="running-from-a-source-checkout">Running from a Source Checkout<a class="headerlink" href="#running-from-a-source-checkout" title="Permanent link">&para;</a></h2>
@@ -876,10 +878,11 @@
 <tr>
 <td><code>POST</code></td>
 <td><code>/robots/:name/chat</code></td>
-<td>Non-streaming fallback — runs to completion and returns rendered transcript HTML fragments (for HTMX <code>hx-swap="beforeend"</code>-style appending)</td>
+<td>Non-streaming fallback — runs to completion and returns rendered transcript HTML fragments (for HTMX <code>hx-swap="beforeend"</code>-style appending; the bundled chat page does not call it and does not load HTMX)</td>
 </tr>
 </tbody>
 </table>
+<p>Both <code>POST</code> routes take a <code>message</code> parameter and require the CSRF token — see <a href="../security/#csrf-protection">Security</a>.</p>
 <p>See <a href="../how_it_works/#the-sse-wire-protocol">How It Works</a> for the exact frame format and why the streaming route can't just be a plain <code>EventSource</code>.</p>
 <h2 id="development">Development<a class="headerlink" href="#development" title="Permanent link">&para;</a></h2>
 <div class="language-sh highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>bin/setup<span class="w">    </span><span class="c1"># install dependencies</span>
