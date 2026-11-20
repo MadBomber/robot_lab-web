@@ -45,11 +45,15 @@ robot_lab-web --port 4567 my_robots.rb    # custom port
 robot_lab-web --host 0.0.0.0 my_robots.rb # custom bind host
 ```
 
-**Or via `config.ru`**, with any Rack server (the app itself is server-agnostic — `exe/robot_lab-web` picks Falcon specifically for its async/fiber reactor, but nothing about the Sinatra app requires it):
+The defaults are host `127.0.0.1` and port `9292`. The short forms are `-p PORT` and `-h HOST` — note that `-h` is the bind host here, not help (`--help` still prints usage).
+
+**Or via the `config.ru` in this gem's root directory**, with any Rack server (the app itself is server-agnostic — `exe/robot_lab-web` picks Falcon specifically for its async/fiber reactor, but nothing about the Sinatra app requires it):
 
 ```sh
 ROBOT_LAB_WEB_BOOT=my_robots.rb falcon serve -c config.ru
 ```
+
+The `--host`/`--port` defaults above belong to `exe/robot_lab-web` only. Launched this way the bind address is whatever the Rack server chooses — `falcon serve` defaults to `https://localhost:9292` (HTTPS with a self-signed certificate) unless you pass `--bind`.
 
 `ROBOT_LAB_WEB_BOOT` (or the boot file argument to the executable) is required by path before the app starts — `config.ru`/`exe/robot_lab-web` both check `File.exist?(boot)` and simply skip loading it if the path doesn't resolve, so a typo'd path silently produces a console with zero registered robots rather than an error.
 
@@ -81,7 +85,9 @@ This doesn't touch Sinatra/Falcon/Phlex at all — see [How It Works](how_it_wor
 | `GET` | `/` | Dashboard: registered robots + a recent-activity feed |
 | `GET` | `/robots/:name` | Chat page for one robot |
 | `POST` | `/robots/:name/stream` | Run a task, stream events as Server-Sent Events (`message`/`done`/`error` frames) |
-| `POST` | `/robots/:name/chat` | Non-streaming fallback — runs to completion and returns rendered transcript HTML fragments (for HTMX `hx-swap="beforeend"`-style appending) |
+| `POST` | `/robots/:name/chat` | Non-streaming fallback — runs to completion and returns rendered transcript HTML fragments (for HTMX `hx-swap="beforeend"`-style appending; the bundled chat page does not call it and does not load HTMX) |
+
+Both `POST` routes take a `message` parameter and require the CSRF token — see [Security](security.md#csrf-protection).
 
 See [How It Works](how_it_works.md#the-sse-wire-protocol) for the exact frame format and why the streaming route can't just be a plain `EventSource`.
 

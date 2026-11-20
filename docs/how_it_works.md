@@ -11,7 +11,7 @@ This split exists so that consuming the event stream from plain Ruby (a test, a 
 
 ## The Event Model
 
-`RobotLab::Web::Event` is a frontend-neutral, **immutable** value object for a single step in a robot run — the one model backing both the persisted (in-memory) activity log and the live SSE stream. It's a `Struct` (keyword-init) that deep-freezes its `content` on construction (recursively, through nested Hashes/Arrays/Strings) and freezes itself, so an `Event` handed to a sink can never be mutated by that sink afterward.
+`RobotLab::Web::Event` is a frontend-neutral, **immutable** value object for a single step in a robot run — the one model backing both the live SSE stream and the server-rendered transcript of the non-streaming `/chat` route. (The in-memory activity log does not store `Event`s — it keeps its own small summary entries; see [`ActivityLog`](#activitylog).) It's a `Struct` (keyword-init) that takes a deep-frozen copy of its `content` on construction (recursively, through nested Hashes/Arrays/Strings) and freezes itself, so an `Event` handed to a sink can never be mutated by that sink afterward. It is a copy on purpose: `content` usually aliases live objects — the argument hash a tool is about to be called with, a tool's result — and those must stay mutable for the run itself.
 
 | Role | `content` shape | Meaning |
 |---|---|---|
@@ -22,11 +22,11 @@ This split exists so that consuming the event stream from plain Ruby (a test, a 
 | `:tool_result` | `{name:, result:}` or `{name:, error:}` | A tool's return (or its failure) |
 | `:error` | `{class:, message:}` | The run itself raised |
 
-Role validation is strict — `Event.new(role: :bogus, ...)` raises `ArgumentError` immediately rather than silently rendering a blank or malformed bubble later. Construction also stamps a UTC `timestamp` and a random `event_id` (`SecureRandom.uuid`) when not given explicitly.
+Role validation is strict (the permitted roles are the `Event::ROLES` constant) — `Event.new(role: :bogus, ...)` raises `ArgumentError` immediately rather than silently rendering a blank or malformed bubble later. Construction also stamps a UTC `timestamp` and a random `event_id` (`SecureRandom.uuid`) when not given explicitly.
 
 Convenience readers mean callers never have to reach into the `content` hash directly: `#tool_name` (works for both `:tool_call` and `:tool_result`), `#error?`, `#error_message`, and `#text` — a role-agnostic "what should I display" reader that unwraps `content[:result]`/`content[:message]`/`content[:args]` for hash-shaped content, or returns `content` itself otherwise.
 
-`#to_h`/`.from_h` round-trip an `Event` through JSON (used both for SSE frames and any future persistence) — `timestamp` serializes as ISO 8601 with millisecond precision; `from_h` accepts either symbol or string keys (`hash.key?(key) ? hash[key] : hash[key.to_s]`) so it can rebuild an `Event` from a hash decoded from JSON (string keys) just as easily as one built in Ruby (symbol keys), and returns `nil` rather than raising if the role can't be validated.
+`#to_h`/`.from_h` round-trip an `Event` through JSON (used both for SSE frames and any future persistence) — `timestamp` serializes as ISO 8601 with millisecond precision; `from_h` accepts either symbol or string keys (`hash.key?(key) ? hash[key] : hash[key.to_s]`) so it can rebuild an `Event` from a hash decoded from JSON (string keys) just as easily as one built in Ruby (symbol keys), and returns `nil` rather than raising if the role is missing or not a permitted one, or the timestamp is not parseable ISO 8601 (all are `ArgumentError`s, which `from_h` rescues).
 
 ## The Hook-to-Sink Bridge
 
@@ -34,28 +34,28 @@ Two pieces work together to turn a synchronous `robot.run` call into a live even
 
 ### `EventSink` — a thread-local mailbox
 
-`robot_lab` hooks are **class-level singletons** — there's no hook instance to hang a per-connection callback on. `EventSink` works around this by stashing the current consumer (any object responding to `#call`) in a `Thread.current` slot for the duration of one run:
+`robot_lab` hooks are **class-level singletons** — there's no hook instance to hang a per-connection callback on. `EventSink` works around this by stashing the current consumer (any object responding to `#call`) in a `Thread.current[]` slot (which Ruby scopes to the current fiber, not the whole thread) for the duration of one run:
 
 ```ruby
 EventSink.capture(sink) { robot.run(message, hooks: [StreamHook]) { |chunk| ... } }
 ```
 
-Because `Robot#run` dispatches its hooks **synchronously on the calling thread**, `StreamHook` (running inside that same call) sees exactly the right sink via `EventSink.current`. `EventSink.emit(event)` delivers to it and swallows any `StandardError` the sink itself raises — a broken consumer (a dead SSE connection, a bug in a custom sink) must never break the robot run it's observing.
+Because `Robot#run` dispatches its hooks **synchronously on the calling thread (and fiber)**, `StreamHook` (running inside that same call) sees exactly the right sink via `EventSink.current`. `EventSink.emit(event)` delivers to it and swallows any `StandardError` the sink itself raises — a broken consumer (a dead SSE connection, a bug in a custom sink) must never break the robot run it's observing.
 
-**Caveat, stated directly in the source:** a robot that executes tools on other threads or via Ractors would not propagate this thread-local — fine for `robot_lab`'s core synchronous tool-call path, but worth knowing if you're pairing this with `robot_lab-ractor` or similar.
+**Caveat, stated directly in the source:** a robot that executes tools on other threads or via Ractors would not propagate this thread-local (the same goes for anything that runs in a different fiber than the one that called `capture`) — fine for `robot_lab`'s core synchronous tool-call path, but worth knowing if you're pairing this with `robot_lab-ractor` or similar.
 
 ### `StreamHook` — the producer
 
-A `RobotLab::Hook` subclass (`namespace = :web_stream`) that taps every lifecycle moment `robot_lab`'s hook system exposes and turns it into an `Event`, delivered to the current `EventSink` and also recorded in `ActivityLog` (see below):
+A `RobotLab::Hook` subclass (`namespace = :web_stream`) that taps the run and tool-call moments of `robot_lab`'s hook system (it does not implement the `around_*`, LLM-generation, network, task, learn, or compaction hooks) and turns each into an `Event`, delivered to the current `EventSink` and also recorded in `ActivityLog` (see below):
 
 | Hook callback | Emits |
 |---|---|
 | `before_run` | `:user` — the incoming request text |
 | `after_run` (success) | `:robot` — the final reply text (`ctx.response.reply`, falling back to `#last_text_content`, then plain `#to_s`) |
-| `after_run` (error) | `:error` |
+| `after_run` (with `ctx.error` set) | `:error` — a defensive branch: `robot_lab` 0.6.1 does not dispatch `after_run` when the run raises, it dispatches `on_error` instead |
 | `before_tool_call` | `:tool_call` |
 | `after_tool_call` | `:tool_result` (success or error shape, depending on `ctx.tool_error`) |
-| `on_error` | `:error` |
+| `on_error` | `:error` — this is what a failed run actually produces |
 
 Registered **per-run**, not globally (`robot.run(message, hooks: [RobotLab::Web::StreamHook])`), so it only fires for web-driven runs — a robot used elsewhere in your app, outside the console, is completely unaffected.
 
@@ -64,6 +64,7 @@ Registered **per-run**, not globally (`robot.run(message, hooks: [RobotLab::Web:
 ```ruby
 def run(robot, message, sink = nil, &block)
   sink ||= block
+  name = robot.respond_to?(:name) ? robot.name : nil
   EventSink.capture(sink) do
     robot.run(message, hooks: [StreamHook]) do |chunk|
       delta = chunk.respond_to?(:content) ? chunk.content : chunk.to_s
@@ -87,11 +88,11 @@ A model or run that doesn't stream token-by-token simply produces no `:delta` ev
 
 A thread-safe, bounded (`MAX_EVENTS` = 50) in-memory ring buffer backing the dashboard's "recent activity" feed — a process-wide singleton (`ActivityLog.instance`), not per-connection. `.safe_log` is the cardinal rule enforced everywhere this is called from instrumentation paths: swallow any error, because **recording that something happened must never be able to break the thing that happened**.
 
-This is intentionally separate from the SSE event stream itself — the activity log is a lightweight, best-effort summary (`role`, `robot`, `tool` — see `StreamHook#emit`'s `ActivityLog.safe_log(role, robot: ..., tool: ...)` call) for the dashboard's overview, not the full transcript; the full transcript only ever exists as the live SSE stream (or whatever a custom sink chooses to persist).
+This is intentionally separate from the SSE event stream itself — the activity log is a lightweight, best-effort summary (`role`, `robot`, `tool` — see the private `StreamHook.emit` helper's `ActivityLog.safe_log(role, robot: ..., tool: ...)` call) for the dashboard's overview, not the full transcript; the full transcript only ever exists as the live SSE stream (or whatever a custom sink chooses to persist).
 
 ## `Registry`
 
-A plain in-memory `Hash`, keyed by robot name (string) — the host app registers robots at boot (`RobotLab::Web.register`), and the Sinatra app reads from it (`Registry.fetch`/`.names`/`.all`) to know what it can list and drive. No persistence beyond the process's own memory — restarting the console clears the registry, and it's rebuilt entirely by whatever boot file ran at start.
+A plain in-memory `Hash`, keyed by robot name (string) — the host app registers robots at boot (`RobotLab::Web.register`), and the Sinatra app reads from it (`Registry.fetch`/`.names`) to know what it can list and drive. No persistence beyond the process's own memory — restarting the console clears the registry, and it's rebuilt entirely by whatever boot file ran at start.
 
 ## The SSE Wire Protocol
 
@@ -107,7 +108,7 @@ Three frame types:
 |---|---|---|
 | `message` | `event.to_h` (a full `Event`, JSON-encoded) | Once per `Event` the run produces — every `:user`/`:delta`/`:tool_call`/`:tool_result`/`:robot`/`:error` |
 | `done` | `{reply: <final text>}` | Once, after the run completes successfully |
-| `error` | `{message: <text>}` | Once, if the request had no `message` param, or if the run itself raised |
+| `error` | `{message: <text>}` | Once, if the request had no (or an empty) `message` param, or if the run itself raised a `StandardError`. The HTTP status is still `200` in both cases — the failure is only visible in the frame |
 
 **Why this isn't a plain browser `EventSource`:** the stream route is CSRF-protected (see [Security](security.md#csrf-protection)), and `EventSource` is GET-only and cannot send custom headers or a request body — there's no way to attach a CSRF token to it. The bundled `Chat` component's client-side JS instead uses `fetch()` with a `ReadableStream` reader, manually parsing the same `event:`/`data:` frame format `EventSource` would have handled natively:
 
@@ -121,7 +122,7 @@ const reader = res.body.getReader();
 // ...decode chunks, split on "\n\n" into frames, parse "event:"/"data:" lines...
 ```
 
-The parsing loop buffers incoming bytes, splits on blank lines (`\n\n`, the SSE frame delimiter) keeping the last, possibly-incomplete fragment in the buffer for the next read, and for each complete frame extracts the `event:` and `data:` lines exactly the way a native `EventSource` would internally.
+The parsing loop buffers incoming bytes, splits on blank lines (`\n\n`, the SSE frame delimiter) keeping the last, possibly-incomplete fragment in the buffer for the next read, and for each complete frame extracts the `event:` and `data:` lines much the way a native `EventSource` would internally. It acts on `message` and `error` frames; the `done` frame is ignored by the bundled client.
 
 ## Token-Delta Rendering, Client-Side
 

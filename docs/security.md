@@ -2,7 +2,7 @@
 
 ## The Posture, Stated Plainly
 
-`robot_lab-web` is a **developer tool**, unauthenticated by default. There is no login, no user model, no access control of any kind on any route. Everything below hardens specific, real attack surfaces (CSRF, session-cookie theft, Host-header tricks, an accidentally-insecure production boot), but **none of it adds authentication**. Run this on `localhost` or a network you already trust; do not expose it to the public internet or to untrusted users on a shared network, regardless of how hardened the pieces below are individually.
+`robot_lab-web` is a **developer tool**, unauthenticated by default. There is no login, no user model, no access control of any kind on any route. Everything below hardens specific, real attack surfaces (CSRF, session-cookie theft, an accidentally-insecure production boot), but **none of it adds authentication** — and one default protection, Host-header authorization, is deliberately switched *off* (see [Host Authorization](#host-authorization)). Run this on `localhost` or a network you already trust; do not expose it to the public internet or to untrusted users on a shared network, regardless of how hardened the pieces below are individually.
 
 ## CSRF Protection
 
@@ -14,11 +14,13 @@ before do
   next if CSRF_SAFE_METHODS.include?(request.request_method)
 
   provided = params['authenticity_token'] || request.env['HTTP_X_CSRF_TOKEN']
-  halt 403, 'Forbidden: invalid CSRF token' unless provided && Rack::Utils.secure_compare(provided, session[:csrf])
+  halt 403, 'Forbidden: invalid CSRF token' unless provided.is_a?(String) && Rack::Utils.secure_compare(provided, session[:csrf])
 end
 ```
 
-The token is accepted from either a form field (`authenticity_token`) or a request header (`X-CSRF-Token`) — the latter is what the streaming chat client actually uses, since its request body is a URL-encoded `message=...` string, not a form submission carrying a hidden field. The page embeds the token in a `<meta name="csrf-token">` tag; the client JS reads it from there.
+A missing token, a wrong token, and a token that isn't a plain String (e.g. `authenticity_token[]=...`, which parses to an Array) are all rejected the same way, with `403`.
+
+The token is accepted from either a request parameter named `authenticity_token` (read via `params`, so a form field or a query-string parameter both count) or a request header (`X-CSRF-Token`) — the latter is what the streaming chat client actually uses, since its request body is a URL-encoded `message=...` string, not a form submission carrying a hidden field. The page embeds the token in a `<meta name="csrf-token">` tag; the client JS reads it from there.
 
 **This is also why the streaming route can't be a plain browser `EventSource`** — `EventSource` is GET-only and can't attach custom headers, so there'd be no way to present a CSRF token on that connection at all. See [How It Works — The SSE Wire Protocol](how_it_works.md#the-sse-wire-protocol) for the `fetch()`-based client this constraint leads to instead.
 
@@ -27,7 +29,7 @@ The token is accepted from either a form field (`authenticity_token`) or a reque
 Sinatra's encrypted cookie session store needs a stable secret — if the secret changes between requests, every existing session cookie becomes invalid (Sinatra's own "HMAC is invalid" error) and users get silently logged out (or, here, lose their CSRF token) on every restart. `App.session_secret_source` resolves the secret in priority order:
 
 1. `ENV['SESSION_SECRET']`, if set
-2. A **persisted** per-installation random secret, generated once and written to `~/.config/robot_lab/web_session_secret` (mode `0600`) — read back on every subsequent boot instead of regenerating
+2. A **persisted** per-user random secret, generated once and written to `~/.config/robot_lab/web_session_secret` (mode `0600`) — read back on every subsequent boot instead of regenerating
 
 ```ruby
 def self.persisted_dev_secret
@@ -35,7 +37,9 @@ def self.persisted_dev_secret
   existing = File.read(path).strip if File.exist?(path)
   return existing if existing && !existing.empty?
 
-  SecureRandom.hex(64).tap { |secret| File.write(path, secret); File.chmod(0o600, path) }
+  require 'fileutils'
+  FileUtils.mkdir_p(File.dirname(path))
+  SecureRandom.hex(64).tap { |secret| File.write(path, secret, perm: 0o600); File.chmod(0o600, path) }
 end
 ```
 
@@ -47,20 +51,20 @@ The resolved secret is then **hashed** (`OpenSSL::Digest::SHA256.hexdigest(...)`
 set :sessions, httponly: true, same_site: :lax, secure: production?
 ```
 
-`httponly: true` — the session cookie is inaccessible to JavaScript (mitigates cookie theft via an XSS bug). `same_site: :lax` — the cookie isn't sent on most cross-site requests (mitigates CSRF further, on top of the explicit token check above). `secure: production?` — the cookie is marked HTTPS-only when running in a Sinatra `production` environment; left off in development, where a local Falcon instance typically isn't behind TLS at all.
+`httponly: true` — the session cookie is inaccessible to JavaScript (mitigates cookie theft via an XSS bug). `same_site: :lax` — the cookie isn't sent on most cross-site requests (mitigates CSRF further, on top of the explicit token check above). `secure: production?` — the cookie is marked HTTPS-only when running in a Sinatra `production` environment; left off in development, where a local Falcon instance typically isn't behind TLS at all. The flip side: in `production` over plain HTTP the session cookie is never set, so no CSRF token survives between requests and every `POST` is rejected with `403` — a production-mode console has to be served over HTTPS.
 
 ## Production Boot Guard
 
 ```ruby
 configure :production do
   unless ENV['SESSION_SECRET']
-    raise 'SESSION_SECRET must be set in production; a per-process random ' \
-          'fallback breaks sessions and CSRF across restarts and workers.'
+    raise 'SESSION_SECRET must be set in production; the per-user persisted ' \
+          'fallback secret differs across hosts, containers and users.'
   end
 end
 ```
 
-In a Sinatra `production` environment specifically, the persisted-random-secret fallback is refused outright — the app raises at boot rather than starting with a secret that (in a real production deployment, likely running multiple worker processes) would differ across those workers and break sessions/CSRF unpredictably between them. This forces an explicit `SESSION_SECRET` in that one environment; development and test both still get the persisted-file fallback.
+In a Sinatra `production` environment specifically (`APP_ENV` or `RACK_ENV` set to `production` when `robot_lab/web/app` is loaded), the persisted-random-secret fallback is refused — the app raises at boot rather than starting with a secret that lives in one user's home directory on one machine, and so would differ across hosts, containers, or users and break sessions/CSRF between them. The guard runs before the secret is resolved, so in production the fallback file is neither read nor created. This forces an explicit `SESSION_SECRET` in that one environment; development and test both still get the persisted-file fallback.
 
 ## Host Authorization
 
@@ -68,7 +72,7 @@ In a Sinatra `production` environment specifically, the persisted-random-secret 
 set :host_authorization, { permitted_hosts: [] }
 ```
 
-Sinatra 4 (via `rack-protection`) enables Host-header authorization by default, 403-ing any request whose `Host` header isn't on an explicit allowlist — a real protection against DNS-rebinding-style attacks in a typical web app. This console explicitly disables that check (`permitted_hosts: []` means "permit all") because, as a developer tool, it's reached via whatever host the operator chooses to bind (`localhost`, a LAN IP, a hostname on a private network) and there's no fixed "correct" host to allowlist ahead of time. This is a deliberate trade-off specific to this tool's use case, not an oversight — but it does mean Host-header-based attacks that this default would otherwise have blocked are back in play, which is one more reason this console belongs on a trusted network only.
+Sinatra 4.1+ (via `rack-protection`) ships Host-header authorization — a real protection against DNS-rebinding-style attacks in a typical web app. Its stock default only restricts the `development` environment, where requests are 403'd unless the `Host` is `localhost`, a `.localhost` or `.test` name, or an IP-address literal; in every other environment the stock default already permits all hosts. This console explicitly disables the check in every environment (`permitted_hosts: []` means "permit all") because, as a developer tool, it's reached via whatever host the operator chooses to bind (`localhost`, a LAN IP, a hostname on a private network) and there's no fixed "correct" host to allowlist ahead of time. This is a deliberate trade-off specific to this tool's use case, not an oversight — but it does mean Host-header-based attacks that this default would otherwise have blocked are back in play, which is one more reason this console belongs on a trusted network only.
 
 ## What This Doesn't Protect Against
 

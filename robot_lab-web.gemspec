@@ -9,7 +9,7 @@ Gem::Specification.new do |spec|
   spec.email = ["dvanhoozer@gmail.com"]
 
   spec.summary = "Browser console for robot_lab: stream a robot's run over Server-Sent Events."
-  spec.description = "A Rails-free Sinatra + HTMX + SSE web interface for robot_lab. " \
+  spec.description = "A Rails-free Sinatra + Phlex + SSE web interface for robot_lab. " \
                      "Register robots, chat with them from the browser, and watch each " \
                      "lifecycle event (tool calls, results, errors) stream in real time " \
                      "via robot_lab's hook system."

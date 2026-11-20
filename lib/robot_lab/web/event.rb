@@ -24,12 +24,12 @@ module RobotLab
 
       # :reek:ControlParameter -- nil timestamp/event_id mean "generate one"; `|| default` also covers explicit nils from .from_h.
       def initialize(role:, content:, robot_name: nil, timestamp: nil, event_id: nil)
-        role = role.to_sym
+        role = role&.to_sym # nil stays nil so a missing role fails validation below, not with NoMethodError
         raise ArgumentError, "invalid role: #{role.inspect} (expected one of #{ROLES.inspect})" unless ROLES.include?(role)
 
         super(
           role: role,
-          content: deep_freeze(content),
+          content: frozen_copy(content),
           robot_name: robot_name,
           timestamp: timestamp || Time.now.utc,
           event_id: event_id || SecureRandom.uuid
@@ -88,22 +88,27 @@ module RobotLab
 
       private
 
-      # :reek:DuplicateMethodCall -- one freeze per case branch; exactly one executes per call.
-      # :reek:FeatureEnvy -- a recursive freeze necessarily walks the argument, not self.
-      def deep_freeze(obj)
+      # A deep-frozen COPY of +obj+'s Hash/Array/String structure. Copying
+      # matters: content often aliases live objects (the args hash a tool is
+      # about to receive, a tool's result), and freezing those in place would
+      # make the robot's own run raise FrozenError.
+      # :reek:FeatureEnvy -- a recursive copy necessarily walks the argument, not self.
+      def frozen_copy(obj)
         case obj
         when Hash
-          obj.each_value { |v| deep_freeze(v) }
-          obj.freeze
+          obj.transform_values { |v| frozen_copy(v) }.freeze
         when Array
-          obj.each { |v| deep_freeze(v) }
-          obj.freeze
+          obj.map { |v| frozen_copy(v) }.freeze
         when String
-          obj.freeze
+          obj.frozen? ? obj : obj.dup.freeze
         else
           obj
         end
       end
     end
+
+    # ROLES above is defined inside the Struct.new block, so Ruby scopes it to
+    # RobotLab::Web. Publish it under Event as well, where callers expect it.
+    Event::ROLES = ROLES
   end
 end

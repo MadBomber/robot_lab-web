@@ -3,6 +3,9 @@
 require "test_helper"
 require "robot_lab/web/app"
 require "rack/test"
+require "open3"
+require "rbconfig"
+require "tmpdir"
 
 # Exercises the HTTP surface: dashboard, 404s, CSRF enforcement, and the SSE
 # stream framing. A fake robot stands in for a real one — its #run drives the
@@ -83,6 +86,56 @@ class RobotLab::Web::TestApp < Minitest::Test
     assert_includes body, "reply: ping"
   end
 
+  # `authenticity_token[]=x` parses to an Array; it must be rejected like
+  # any other bad token rather than blowing up in secure_compare (a 500).
+  def test_non_string_csrf_token_is_forbidden
+    get "/"
+    post "/robots/echo/chat", { message: "hi", authenticity_token: ["x"] }
+    assert_equal 403, last_response.status
+  end
+
+  def test_robot_names_are_url_escaped_in_links
+    RobotLab::Web::Registry.register(FakeRobot.new("my robot"))
+
+    get "/"
+    assert_includes last_response.body, 'href="/robots/my%20robot"'
+
+    get "/robots/my%20robot"
+    assert last_response.ok?
+    assert_includes last_response.body, 'data-stream-url="/robots/my%20robot/stream"'
+
+    post "/robots/my%20robot/chat", { message: "hi" }, csrf_header
+    assert last_response.ok?
+    assert_includes last_response.body, "reply: hi"
+  end
+
+  def test_persisted_dev_secret_is_owner_only_and_stable
+    Dir.mktmpdir do |home|
+      with_home(home) do
+        secret = app.persisted_dev_secret
+        path = File.join(home, ".config", "robot_lab", "web_session_secret")
+
+        assert_match(/\A\h{128}\z/, secret)
+        assert_equal 0o600, File.stat(path).mode & 0o777
+        assert_equal secret, app.persisted_dev_secret
+      end
+    end
+  end
+
+  # The guard is class-body code, so it can only be observed by loading the
+  # app in a fresh process with the production environment set.
+  def test_production_without_session_secret_refuses_to_boot_and_writes_no_secret
+    Dir.mktmpdir do |home|
+      env = { "APP_ENV" => "production", "RACK_ENV" => nil, "SESSION_SECRET" => nil, "HOME" => home }
+      lib = File.expand_path("../../../lib", __dir__)
+      output, status = Open3.capture2e(env, RbConfig.ruby, "-I", lib, "-e", 'require "robot_lab/web/app"')
+
+      refute status.success?
+      assert_includes output, "SESSION_SECRET must be set in production"
+      refute File.exist?(File.join(home, ".config", "robot_lab", "web_session_secret"))
+    end
+  end
+
   private
 
   # Establish a session (GET sets the CSRF token) and return a header hash
@@ -90,5 +143,13 @@ class RobotLab::Web::TestApp < Minitest::Test
   def csrf_header
     get "/"
     { "HTTP_X_CSRF_TOKEN" => last_request.env["rack.session"][:csrf] }
+  end
+
+  def with_home(dir)
+    previous = Dir.home
+    ENV["HOME"] = dir
+    yield
+  ensure
+    ENV["HOME"] = previous
   end
 end

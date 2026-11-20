@@ -54,4 +54,36 @@ class RobotLab::Web::TestEvent < Minitest::Test
     assert_equal original.event_id, rebuilt.event_id
     assert_in_delta original.timestamp.to_f, rebuilt.timestamp.to_f, 0.001
   end
+
+  def test_roles_constant_is_reachable_through_event
+    assert_equal %i[user delta robot tool_call tool_result error], Event::ROLES
+    assert_same RobotLab::Web::ROLES, Event::ROLES
+  end
+
+  def test_nil_role_is_an_argument_error
+    assert_raises(ArgumentError) { Event.new(role: nil, content: "x") }
+  end
+
+  def test_from_h_returns_nil_for_missing_or_invalid_role
+    assert_nil Event.from_h({})
+    assert_nil Event.from_h("content" => "x")
+    assert_nil Event.from_h("role" => "bogus", "content" => "x")
+  end
+
+  # Content usually aliases live objects (the args a tool is about to be
+  # called with); the Event must freeze its own copy, never the caller's.
+  def test_does_not_freeze_the_callers_content_in_place
+    text = +"hello"
+    list = [text]
+    args = { text: text, list: list }
+    event = Event.new(role: :tool_call, content: { name: "echo", args: args })
+
+    refute args.frozen?
+    refute list.frozen?
+    refute text.frozen?
+    assert event.content[:args].frozen?
+    assert event.content[:args][:list].frozen?
+    assert event.content[:args][:text].frozen?
+    assert_equal args, event.content[:args]
+  end
 end
