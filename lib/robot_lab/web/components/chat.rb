@@ -21,7 +21,7 @@ module RobotLab
 
           div(id: "transcript", class: "transcript")
 
-          form(id: "composer", class: "composer", data: { stream_url: "/robots/#{@name}/stream" }) do
+          form(id: "composer", class: "composer", data: { stream_url: "/robots/#{Rack::Utils.escape_path(@name)}/stream" }) do
             input(
               type: "text", name: "message", id: "message",
               placeholder: "Message #{@name}…", autocomplete: "off", autofocus: true

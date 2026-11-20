@@ -3,7 +3,7 @@
 # Server-agnostic Rack entry point for robot_lab-web. Falcon is the default
 # server (see exe/robot_lab-web), but any Rack server can run this file:
 #
-#   falcon serve -c config.ru          # boots the console at localhost:9292
+#   falcon serve -c config.ru          # boots the console at https://localhost:9292
 #
 # By default no robots are registered. Point ROBOT_LAB_WEB_BOOT at a Ruby file
 # that requires robot_lab, builds your robots, and calls RobotLab::Web.register

@@ -1,5 +1,5 @@
 site_name: robot_lab-web
-site_description: A Rails-free Sinatra + HTMX + SSE browser console for the RobotLab LLM agent framework
+site_description: A Rails-free Sinatra + Phlex + SSE browser console for the RobotLab LLM agent framework
 site_author: Dewayne VanHoozer
 site_url: https://madbomber.github.io/robot_lab-web
 copyright: Copyright &copy; 2026 Dewayne VanHoozer

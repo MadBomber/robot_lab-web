@@ -6,7 +6,9 @@ tool results, the final reply, errors — **stream in real time** over
 Server-Sent Events.
 
 It's the standalone counterpart to `robot_lab-rails`: one event stream, a
-Sinatra + HTMX front end, no Turbo and no Rails required.
+Sinatra front end with a small vanilla-JS streaming client (HTMX is not
+bundled; the non-streaming endpoint returns HTML fragments an HTMX client can
+swap in), no Turbo and no Rails required.
 
 > ⚠️ **Developer tool.** The console is **unauthenticated by default**. Run it on
 > localhost or a trusted private network. It ships sensible hardening (CSRF with
@@ -48,10 +50,11 @@ robot_lab-web my_robots.rb            # http://127.0.0.1:9292
 robot_lab-web --port 4567 my_robots.rb
 ```
 
-…or point Falcon (or any Rack server) at the server-agnostic `config.ru`:
+…or point Falcon (or any Rack server) at the server-agnostic `config.ru` that
+ships in this gem's root directory:
 
 ```bash
-ROBOT_LAB_WEB_BOOT=my_robots.rb falcon serve -c config.ru
+ROBOT_LAB_WEB_BOOT=my_robots.rb falcon serve -c config.ru   # falcon's own default bind: https://localhost:9292
 ```
 
 Then open the dashboard, pick a robot, and chat. (Running a robot needs the
@@ -77,6 +80,10 @@ end
 | POST   | `/robots/:name/stream`   | Run a task, stream events as SSE (`message`/`done`/`error`) |
 | POST   | `/robots/:name/chat`     | Non-streaming fallback; returns rendered transcript HTML |
 
+Both `POST` routes take a `message` parameter and require the CSRF token
+(`X-CSRF-Token` header or `authenticity_token` parameter). The bundled chat page
+uses only the streaming route.
+
 ## Development
 
 After checking out the repo, run `bin/setup` to install dependencies, then
@@ -89,7 +96,8 @@ Sinatra via `phlex-sinatra`, styled with Tailwind, with Heroicons from
 `phlex-icons-hero`.
 
 The Sinatra stack is opt-in: `require "robot_lab/web"` loads only the core;
-`require "robot_lab/web/app"` (or `RobotLab::Web.app`) pulls in Sinatra/Falcon/Phlex.
+`require "robot_lab/web/app"` (or `RobotLab::Web.app`) pulls in Sinatra/Phlex.
+Falcon is loaded only by the `robot_lab-web` executable.
 
 ## License
 

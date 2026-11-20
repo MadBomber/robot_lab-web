@@ -2,7 +2,7 @@
 
 A Rails-free **web console for [robot_lab](https://github.com/MadBomber/robot_lab)**: register your robots, chat with them from the browser, and watch each lifecycle event — tool calls, tool results, the final reply, errors — **stream in real time** over Server-Sent Events.
 
-It's the standalone counterpart to [`robot_lab-rails`](https://github.com/MadBomber/robot_lab-rails): one event stream, a Sinatra + HTMX front end, no Turbo and no Rails required.
+It's the standalone counterpart to [`robot_lab-rails`](https://github.com/MadBomber/robot_lab-rails): one event stream, a Sinatra front end with a small vanilla-JS streaming client (HTMX is not bundled; the non-streaming endpoint returns HTML fragments an HTMX client can swap in), no Turbo and no Rails required.
 
 ```ruby
 # my_robots.rb
@@ -44,10 +44,10 @@ browser ──POST /robots/:name/stream──▶ Sinatra App
 |---|---|
 | **Server** | [Falcon](https://github.com/socketry/falcon) (async/fiber reactor — the right fit for long-lived SSE streams); `config.ru` itself is server-agnostic |
 | **Views** | [Phlex](https://www.phlex.fun/) components, rendered via `phlex-sinatra`, styled with Tailwind (Play CDN), icons from `phlex-icons-hero` |
-| **Front end** | Vanilla JS `fetch()` streaming client (not `EventSource` — the stream route is CSRF-protected, and `EventSource` can't send custom headers) plus an HTMX-compatible non-streaming fallback |
+| **Front end** | Vanilla JS `fetch()` streaming client (not `EventSource` — the stream route is CSRF-protected, and `EventSource` can't send custom headers) plus an HTMX-compatible non-streaming fallback endpoint (HTMX itself is not loaded by the bundled pages, which use only the streaming route) |
 | **Core dependency** | `require "robot_lab/web"` alone gets you the event model, activity log, sink, and registry — no Sinatra/Falcon/Phlex loaded |
-| **Opt-in web stack** | `require "robot_lab/web/app"` (or call `RobotLab::Web.app`) pulls in Sinatra, Falcon, and Phlex |
-| **Endpoints** | `GET /`, `GET /robots/:name`, `POST /robots/:name/stream` (SSE), `POST /robots/:name/chat` (non-streaming HTMX fallback) |
+| **Opt-in web stack** | `require "robot_lab/web/app"` (or call `RobotLab::Web.app`) pulls in Sinatra and Phlex; Falcon is loaded only by the `robot_lab-web` executable |
+| **Endpoints** | `GET /`, `GET /robots/:name`, `POST /robots/:name/stream` (SSE), `POST /robots/:name/chat` (non-streaming, HTMX-compatible fallback) |
 | **Hook used** | `RobotLab::Web::StreamHook`, registered per-run (`hooks: [StreamHook]`), not globally |
 
 ## Links

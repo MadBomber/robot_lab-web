@@ -44,8 +44,20 @@ module RobotLab
         require 'fileutils'
         FileUtils.mkdir_p(File.dirname(path))
         SecureRandom.hex(64).tap do |secret|
-          File.write(path, secret)
+          # Create it owner-only from the start (perm:), so the secret is never
+          # briefly world-readable; chmod covers a pre-existing empty file.
+          File.write(path, secret, perm: 0o600)
           File.chmod(0o600, path)
+        end
+      end
+
+      # Must run before the general configure block below: that block resolves
+      # the session secret, and in production the persisted-file fallback must
+      # never be consulted (or created).
+      configure :production do
+        unless ENV['SESSION_SECRET']
+          raise 'SESSION_SECRET must be set in production; the per-user persisted ' \
+                'fallback secret differs across hosts, containers and users.'
         end
       end
 
@@ -61,13 +73,6 @@ module RobotLab
         set :session_secret, OpenSSL::Digest::SHA256.hexdigest(session_secret_source)
       end
 
-      configure :production do
-        unless ENV['SESSION_SECRET']
-          raise 'SESSION_SECRET must be set in production; a per-process random ' \
-                'fallback breaks sessions and CSRF across restarts and workers.'
-        end
-      end
-
       CSRF_SAFE_METHODS = %w[GET HEAD OPTIONS].freeze
 
       before do
@@ -75,7 +80,9 @@ module RobotLab
         next if CSRF_SAFE_METHODS.include?(request.request_method)
 
         provided = params['authenticity_token'] || request.env['HTTP_X_CSRF_TOKEN']
-        halt 403, 'Forbidden: invalid CSRF token' unless provided &&
+        # is_a?(String): `authenticity_token[]=x` arrives as an Array, which
+        # secure_compare would raise on (a 500) instead of rejecting.
+        halt 403, 'Forbidden: invalid CSRF token' unless provided.is_a?(String) &&
                                                          Rack::Utils.secure_compare(provided, session[:csrf])
       end
 

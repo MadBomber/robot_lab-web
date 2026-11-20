@@ -19,7 +19,7 @@ module RobotLab
           else
             ul(class: "robots") do
               @robots.each do |name|
-                li { a(href: "/robots/#{name}") { name } }
+                li { a(href: "/robots/#{Rack::Utils.escape_path(name)}") { name } }
               end
             end
           end
